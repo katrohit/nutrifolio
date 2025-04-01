@@ -1,3 +1,4 @@
+
 import type { Config } from "tailwindcss";
 
 export default {
@@ -61,6 +62,15 @@ export default {
 					'accent-foreground': 'hsl(var(--sidebar-accent-foreground))',
 					border: 'hsl(var(--sidebar-border))',
 					ring: 'hsl(var(--sidebar-ring))'
+				},
+				nutrifolio: {
+					primary: '#4CAF50',     // Green for primary actions
+					secondary: '#2196F3',   // Blue for secondary actions
+					accent: '#8BC34A',      // Light green accent
+					light: '#E8F5E9',      // Very light green for backgrounds
+					dark: '#1B5E20',       // Dark green for text
+					neutral: '#F5F5F5',    // Light gray for neutral areas
+					progress: '#66BB6A'     // Green for progress indicators
 				}
 			},
 			borderRadius: {
@@ -84,11 +94,34 @@ export default {
 					to: {
 						height: '0'
 					}
-				}
+				},
+				'fade-in': {
+					'0%': {
+						opacity: '0',
+					},
+					'100%': {
+						opacity: '1',
+					},
+				},
+				'bounce-in': {
+					'0%': {
+						transform: 'scale(0.8)',
+						opacity: '0',
+					},
+					'80%': {
+						transform: 'scale(1.05)',
+					},
+					'100%': {
+						transform: 'scale(1)',
+						opacity: '1',
+					},
+				},
 			},
 			animation: {
 				'accordion-down': 'accordion-down 0.2s ease-out',
-				'accordion-up': 'accordion-up 0.2s ease-out'
+				'accordion-up': 'accordion-up 0.2s ease-out',
+				'fade-in': 'fade-in 0.3s ease-out forwards',
+				'bounce-in': 'bounce-in 0.5s ease-out forwards',
 			}
 		}
 	},
