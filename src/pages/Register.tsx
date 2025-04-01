@@ -16,36 +16,105 @@ import {
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/components/ui/use-toast';
 import { useAuth } from '@/context/AuthContext';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
-const formSchema = z.object({
+const emailPasswordSchema = z.object({
   email: z.string().email('Please enter a valid email address'),
   password: z.string().min(6, 'Password must be at least 6 characters'),
 });
 
+const emailSchema = z.object({
+  email: z.string().email('Please enter a valid email address'),
+});
+
+const phoneSchema = z.object({
+  phone: z.string().min(10, 'Please enter a valid phone number'),
+});
+
 const RegisterPage = () => {
-  const { signUp, signInWithGoogle } = useAuth();
+  const { signUp, signInWithMagicLink, signInWithGoogle, signInWithOTP } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [registered, setRegistered] = useState(false);
+  const [magicLinkSent, setMagicLinkSent] = useState(false);
+  const [otpSent, setOtpSent] = useState(false);
 
-  const form = useForm<z.infer<typeof formSchema>>({
-    resolver: zodResolver(formSchema),
+  const emailPasswordForm = useForm<z.infer<typeof emailPasswordSchema>>({
+    resolver: zodResolver(emailPasswordSchema),
     defaultValues: {
       email: '',
       password: '',
     },
   });
 
-  const onSubmit = async (values: z.infer<typeof formSchema>) => {
+  const emailForm = useForm<z.infer<typeof emailSchema>>({
+    resolver: zodResolver(emailSchema),
+    defaultValues: { email: '' },
+  });
+
+  const phoneForm = useForm<z.infer<typeof phoneSchema>>({
+    resolver: zodResolver(phoneSchema),
+    defaultValues: { phone: '' },
+  });
+
+  const handleEmailPasswordSubmit = async (values: z.infer<typeof emailPasswordSchema>) => {
     try {
       setLoading(true);
       await signUp(values.email, values.password);
       setRegistered(true);
       setLoading(false);
-    } catch (error) {
+      toast({
+        title: 'Registration successful',
+        description: 'Check your email for a confirmation link.',
+      });
+    } catch (error: any) {
       setLoading(false);
-      console.error('Registration error:', error);
+      toast({
+        title: 'Registration failed',
+        description: error.message || 'An error occurred during registration',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleMagicLinkSubmit = async (values: z.infer<typeof emailSchema>) => {
+    try {
+      setLoading(true);
+      await signInWithMagicLink(values.email);
+      setMagicLinkSent(true);
+      setLoading(false);
+      toast({
+        title: 'Magic link sent',
+        description: 'Check your email for a login link',
+      });
+    } catch (error: any) {
+      setLoading(false);
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to send magic link',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleOTPSubmit = async (values: z.infer<typeof phoneSchema>) => {
+    try {
+      setLoading(true);
+      await signInWithOTP(values.phone);
+      setOtpSent(true);
+      setLoading(false);
+      toast({
+        title: 'OTP sent',
+        description: 'Check your phone for a verification code',
+      });
+    } catch (error: any) {
+      setLoading(false);
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to send OTP',
+        variant: 'destructive',
+      });
     }
   };
 
@@ -53,10 +122,14 @@ const RegisterPage = () => {
     try {
       setLoading(true);
       await signInWithGoogle();
-      // Note: No need to navigate here, the OAuth redirect will handle that
-    } catch (error) {
+      // No need to navigate here, the OAuth redirect will handle that
+    } catch (error: any) {
       setLoading(false);
-      console.error('Google sign in error:', error);
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to sign in with Google',
+        variant: 'destructive',
+      });
     }
   };
 
@@ -85,61 +158,159 @@ const RegisterPage = () => {
                 We've sent a confirmation link to your email address. Click the link to complete your registration.
               </p>
             </div>
+          ) : magicLinkSent ? (
+            <div className="text-center">
+              <div className="mb-4 text-6xl">✉️</div>
+              <h3 className="mb-2 text-xl font-bold">Check your email</h3>
+              <p className="text-muted-foreground">
+                We've sent a magic link to your email address. Click the link to sign in.
+              </p>
+            </div>
+          ) : otpSent ? (
+            <div className="text-center">
+              <div className="mb-4 text-6xl">📱</div>
+              <h3 className="mb-2 text-xl font-bold">Check your phone</h3>
+              <p className="text-muted-foreground">
+                We've sent a verification code to your phone. Enter the code to sign in.
+              </p>
+            </div>
           ) : (
             <>
-              <Form {...form}>
-                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-                  <FormField
-                    control={form.control}
-                    name="email"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Email address</FormLabel>
-                        <FormControl>
-                          <Input 
-                            placeholder="your.email@example.com" 
-                            type="email" 
-                            autoComplete="email" 
-                            disabled={loading} 
-                            {...field} 
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+              <Tabs defaultValue="email-password" className="w-full">
+                <TabsList className="grid w-full grid-cols-3">
+                  <TabsTrigger value="email-password">Email & Password</TabsTrigger>
+                  <TabsTrigger value="magic-link">Magic Link</TabsTrigger>
+                  <TabsTrigger value="phone">Phone</TabsTrigger>
+                </TabsList>
+                
+                <TabsContent value="email-password">
+                  <Form {...emailPasswordForm}>
+                    <form onSubmit={emailPasswordForm.handleSubmit(handleEmailPasswordSubmit)} className="space-y-6 pt-4">
+                      <FormField
+                        control={emailPasswordForm.control}
+                        name="email"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Email address</FormLabel>
+                            <FormControl>
+                              <Input 
+                                placeholder="your.email@example.com" 
+                                type="email" 
+                                autoComplete="email" 
+                                disabled={loading} 
+                                {...field} 
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
 
-                  <FormField
-                    control={form.control}
-                    name="password"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Password</FormLabel>
-                        <FormControl>
-                          <Input 
-                            placeholder="••••••••" 
-                            type="password" 
-                            autoComplete="new-password" 
-                            disabled={loading} 
-                            {...field} 
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                      <FormField
+                        control={emailPasswordForm.control}
+                        name="password"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Password</FormLabel>
+                            <FormControl>
+                              <Input 
+                                placeholder="••••••••" 
+                                type="password" 
+                                autoComplete="new-password" 
+                                disabled={loading} 
+                                {...field} 
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
 
-                  <div>
-                    <Button 
-                      type="submit" 
-                      className="w-full" 
-                      disabled={loading}
-                    >
-                      {loading ? 'Creating account...' : 'Create account'}
-                    </Button>
-                  </div>
-                </form>
-              </Form>
+                      <div>
+                        <Button 
+                          type="submit" 
+                          className="w-full" 
+                          disabled={loading}
+                        >
+                          {loading ? 'Creating account...' : 'Create account'}
+                        </Button>
+                      </div>
+                    </form>
+                  </Form>
+                </TabsContent>
+                
+                <TabsContent value="magic-link">
+                  <Form {...emailForm}>
+                    <form onSubmit={emailForm.handleSubmit(handleMagicLinkSubmit)} className="space-y-6 pt-4">
+                      <FormField
+                        control={emailForm.control}
+                        name="email"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Email address</FormLabel>
+                            <FormControl>
+                              <Input 
+                                placeholder="your.email@example.com" 
+                                type="email" 
+                                autoComplete="email" 
+                                disabled={loading} 
+                                {...field} 
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <div>
+                        <Button 
+                          type="submit" 
+                          className="w-full" 
+                          disabled={loading}
+                        >
+                          {loading ? 'Sending link...' : 'Send magic link'}
+                        </Button>
+                      </div>
+                    </form>
+                  </Form>
+                </TabsContent>
+                
+                <TabsContent value="phone">
+                  <Form {...phoneForm}>
+                    <form onSubmit={phoneForm.handleSubmit(handleOTPSubmit)} className="space-y-6 pt-4">
+                      <FormField
+                        control={phoneForm.control}
+                        name="phone"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Phone number</FormLabel>
+                            <FormControl>
+                              <Input 
+                                placeholder="+1 555 123 4567" 
+                                type="tel" 
+                                autoComplete="tel" 
+                                disabled={loading} 
+                                {...field} 
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <div>
+                        <Button 
+                          type="submit" 
+                          className="w-full" 
+                          disabled={loading}
+                        >
+                          {loading ? 'Sending OTP...' : 'Send verification code'}
+                        </Button>
+                      </div>
+                    </form>
+                  </Form>
+                </TabsContent>
+              </Tabs>
 
               <div className="mt-6">
                 <div className="relative">

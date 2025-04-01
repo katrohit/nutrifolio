@@ -9,7 +9,141 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      chat_messages: {
+        Row: {
+          created_at: string
+          id: string
+          is_user: boolean
+          message: string
+          response: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_user: boolean
+          message: string
+          response?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_user?: boolean
+          message?: string
+          response?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      food_logs: {
+        Row: {
+          brand: string | null
+          calories: number
+          carbs: number
+          created_at: string
+          fat: number
+          food_name: string
+          id: string
+          log_date: string
+          meal_type: string
+          protein: number
+          serving_qty: number
+          serving_size: string
+          user_id: string
+        }
+        Insert: {
+          brand?: string | null
+          calories: number
+          carbs: number
+          created_at?: string
+          fat: number
+          food_name: string
+          id?: string
+          log_date: string
+          meal_type: string
+          protein: number
+          serving_qty: number
+          serving_size: string
+          user_id: string
+        }
+        Update: {
+          brand?: string | null
+          calories?: number
+          carbs?: number
+          created_at?: string
+          fat?: number
+          food_name?: string
+          id?: string
+          log_date?: string
+          meal_type?: string
+          protein?: number
+          serving_qty?: number
+          serving_size?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          activity_level: string | null
+          age: number | null
+          calorie_goal: number | null
+          carbs_goal: number | null
+          created_at: string
+          fat_goal: number | null
+          first_name: string | null
+          gender: string | null
+          goal: string | null
+          height: number | null
+          height_unit: string
+          id: string
+          last_name: string | null
+          protein_goal: number | null
+          updated_at: string
+          weight: number | null
+          weight_unit: string
+        }
+        Insert: {
+          activity_level?: string | null
+          age?: number | null
+          calorie_goal?: number | null
+          carbs_goal?: number | null
+          created_at?: string
+          fat_goal?: number | null
+          first_name?: string | null
+          gender?: string | null
+          goal?: string | null
+          height?: number | null
+          height_unit?: string
+          id: string
+          last_name?: string | null
+          protein_goal?: number | null
+          updated_at?: string
+          weight?: number | null
+          weight_unit?: string
+        }
+        Update: {
+          activity_level?: string | null
+          age?: number | null
+          calorie_goal?: number | null
+          carbs_goal?: number | null
+          created_at?: string
+          fat_goal?: number | null
+          first_name?: string | null
+          gender?: string | null
+          goal?: string | null
+          height?: number | null
+          height_unit?: string
+          id?: string
+          last_name?: string | null
+          protein_goal?: number | null
+          updated_at?: string
+          weight?: number | null
+          weight_unit?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

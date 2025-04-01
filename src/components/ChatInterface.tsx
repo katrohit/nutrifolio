@@ -1,10 +1,10 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { SendHorizonal, Plus } from 'lucide-react';
+import { SendHorizonal, Plus, Loader2 } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 
 type ChatMessage = {
@@ -36,12 +36,14 @@ const ChatInterface = () => {
   }, [chatHistory]);
 
   const fetchChatHistory = async () => {
+    if (!user) return;
+
     try {
       // Fetch the last 15 messages from the chat_messages table
       const { data, error } = await supabase
         .from('chat_messages')
         .select('id, message, response, is_user, created_at')
-        .eq('user_id', user?.id)
+        .eq('user_id', user.id)
         .order('created_at', { ascending: true })
         .limit(15);
 
@@ -104,19 +106,19 @@ const ChatInterface = () => {
       setChatHistory((prev) => [...prev, userMessage]);
       setMessage('');
 
-      // This would normally call an edge function to process the food logging
-      // For now we'll simulate a response
-      setTimeout(async () => {
-        // In a real implementation, we would call an edge function here
-        // that would use OpenAI to parse the food and return nutritional data
+      try {
+        // Call the nutrition-assistant edge function
+        const { data: aiResponseData, error: aiError } = await supabase.functions.invoke('nutrition-assistant', {
+          body: { message: message.trim(), userId: user.id }
+        });
         
-        const mockResponse = generateMockResponse(message.trim());
-        
+        if (aiError) throw aiError;
+
         // Update the chat message with the AI response
         const { error: updateError } = await supabase
           .from('chat_messages')
           .update({
-            response: mockResponse,
+            response: aiResponseData.response,
           })
           .eq('id', messageData.id);
           
@@ -125,24 +127,52 @@ const ChatInterface = () => {
         // Add AI response to chat
         const aiMessage: ChatMessage = {
           id: messageData.id + '-response',
-          message: mockResponse,
+          message: aiResponseData.response,
           response: null,
           isUser: false,
           createdAt: new Date().toISOString(),
         };
         
         setChatHistory((prev) => [...prev, aiMessage]);
-        setLoading(false);
-        
-        // Simulate adding a food log entry
-        // In a real implementation, the edge function would parse the food and create a food log entry
-        if (message.toLowerCase().includes('banana') || 
-            message.toLowerCase().includes('chicken') || 
-            message.toLowerCase().includes('apple')) {
-          // Add to food log - would come from AI in real app
-          await addFoodLogEntry(message);
+
+        // Display toast if food was logged
+        if (aiResponseData.foodData) {
+          toast({
+            title: 'Food logged successfully',
+            description: `Added ${aiResponseData.foodData.food_name} to your ${aiResponseData.foodData.meal_type.toLowerCase()}`,
+          });
         }
-      }, 1000);
+      } catch (error) {
+        console.error('Error calling nutrition assistant:', error);
+        
+        // Add a fallback AI response in case the edge function fails
+        const fallbackResponse = "I'm having trouble processing your request right now. Please try again later.";
+        
+        await supabase
+          .from('chat_messages')
+          .update({
+            response: fallbackResponse,
+          })
+          .eq('id', messageData.id);
+        
+        const aiMessage: ChatMessage = {
+          id: messageData.id + '-response',
+          message: fallbackResponse,
+          response: null,
+          isUser: false,
+          createdAt: new Date().toISOString(),
+        };
+        
+        setChatHistory((prev) => [...prev, aiMessage]);
+        
+        toast({
+          title: 'Error',
+          description: 'Failed to process your message',
+          variant: 'destructive',
+        });
+      }
+      
+      setLoading(false);
       
     } catch (error) {
       console.error('Error sending message:', error);
@@ -153,107 +183,6 @@ const ChatInterface = () => {
         variant: 'destructive',
       });
     }
-  };
-
-  // Mock function to generate responses for demo
-  const generateMockResponse = (userMessage: string) => {
-    const lowerMessage = userMessage.toLowerCase();
-    
-    if (lowerMessage.includes('banana')) {
-      return "I've logged 1 medium banana (118g): 105 calories, 0.3g fat, 1.3g protein, 27g carbs";
-    } else if (lowerMessage.includes('chicken')) {
-      const weight = lowerMessage.match(/\d+g/) ? lowerMessage.match(/\d+g/)![0] : '100g';
-      return `I've logged ${weight} of grilled chicken breast: 165 calories, 3.6g fat, 31g protein, 0g carbs`;
-    } else if (lowerMessage.includes('apple')) {
-      return "I've logged 1 medium apple (182g): 95 calories, 0.3g fat, 0.5g protein, 25g carbs";
-    } else {
-      return "I didn't recognize that food item. Please try again with a specific food and portion, like '1 banana' or '300g grilled chicken'";
-    }
-  };
-
-  // Mock function to add a food log entry
-  const addFoodLogEntry = async (userMessage: string) => {
-    try {
-      const now = new Date();
-      let foodData = {
-        user_id: user!.id,
-        food_name: '',
-        calories: 0,
-        protein: 0,
-        carbs: 0,
-        fat: 0,
-        meal_type: getMealTypeByTime(now),
-        serving_size: '',
-        serving_qty: 1,
-        log_date: now.toISOString().split('T')[0]
-      };
-      
-      const lowerMessage = userMessage.toLowerCase();
-      
-      if (lowerMessage.includes('banana')) {
-        foodData = {
-          ...foodData,
-          food_name: 'Banana',
-          calories: 105,
-          protein: 1.3,
-          carbs: 27,
-          fat: 0.3,
-          serving_size: 'medium (118g)',
-        };
-      } else if (lowerMessage.includes('chicken')) {
-        const weight = lowerMessage.match(/\d+g/) 
-          ? parseInt(lowerMessage.match(/\d+g/)![0]) 
-          : 100;
-          
-        const multiplier = weight / 100;
-        
-        foodData = {
-          ...foodData,
-          food_name: 'Grilled Chicken Breast',
-          calories: Math.round(165 * multiplier),
-          protein: Math.round(31 * multiplier * 10) / 10,
-          carbs: 0,
-          fat: Math.round(3.6 * multiplier * 10) / 10,
-          serving_size: `${weight}g`,
-        };
-      } else if (lowerMessage.includes('apple')) {
-        foodData = {
-          ...foodData,
-          food_name: 'Apple',
-          calories: 95,
-          protein: 0.5,
-          carbs: 25,
-          fat: 0.3,
-          serving_size: 'medium (182g)',
-        };
-      }
-      
-      await supabase.from('food_logs').insert(foodData);
-      
-      toast({
-        title: 'Food logged successfully',
-        description: `Added ${foodData.food_name} to your ${foodData.meal_type.toLowerCase()}`,
-      });
-      
-    } catch (error) {
-      console.error('Error adding food log:', error);
-      toast({
-        title: 'Failed to log food',
-        description: 'There was an error saving your food log.',
-        variant: 'destructive',
-      });
-    }
-  };
-
-  const getMealTypeByTime = (date: Date) => {
-    const hour = date.getHours();
-    
-    if (hour >= 5 && hour < 10) return 'Breakfast';
-    if (hour >= 10 && hour < 12) return 'Morning Snack';
-    if (hour >= 12 && hour < 15) return 'Lunch';
-    if (hour >= 15 && hour < 18) return 'Afternoon Snack';
-    if (hour >= 18 && hour < 21) return 'Dinner';
-    return 'Evening Snack';
   };
   
   return (
@@ -322,7 +251,11 @@ const ChatInterface = () => {
             disabled={!message.trim() || loading}
             className="h-10 w-10 shrink-0"
           >
-            <SendHorizonal className="h-5 w-5" />
+            {loading ? (
+              <Loader2 className="h-5 w-5 animate-spin" />
+            ) : (
+              <SendHorizonal className="h-5 w-5" />
+            )}
           </Button>
         </form>
       </div>
