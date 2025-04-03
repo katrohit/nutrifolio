@@ -1,5 +1,4 @@
-
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
@@ -17,7 +16,8 @@ import { Input } from '@/components/ui/input';
 import { useToast } from '@/components/ui/use-toast';
 import { useAuth } from '@/context/AuthContext';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { PhoneInput } from '@/components/ui/phone-input';
+import { supabase } from '@/integrations/supabase/client';
+import { Loader2 } from 'lucide-react';
 
 const emailSchema = z.object({
   email: z.string().email('Please enter a valid email address'),
@@ -33,12 +33,51 @@ const passwordSchema = z.object({
 });
 
 const LoginPage = () => {
-  const { signInWithMagicLink, signIn, signInWithGoogle, signInWithOTP } = useAuth();
+  const { signInWithMagicLink, signIn, signInWithGoogle, signInWithOTP, user } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [magicLinkSent, setMagicLinkSent] = useState(false);
   const [otpSent, setOtpSent] = useState(false);
+  const [authError, setAuthError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (user) {
+      navigate('/dashboard');
+    }
+  }, [user, navigate]);
+
+  useEffect(() => {
+    const handleAuthError = () => {
+      const url = new URL(window.location.href);
+      const error = url.searchParams.get('error');
+      const errorDescription = url.searchParams.get('error_description');
+      
+      if (error) {
+        setAuthError(errorDescription || error);
+        toast({
+          title: 'Authentication Error',
+          description: errorDescription || error,
+          variant: 'destructive',
+        });
+        
+        url.searchParams.delete('error');
+        url.searchParams.delete('error_description');
+        window.history.replaceState({}, document.title, url.toString());
+      }
+    };
+    
+    handleAuthError();
+  }, [toast]);
+  
+  useEffect(() => {
+    const checkAuthStatus = async () => {
+      const { data, error } = await supabase.auth.getSession();
+      console.log('Auth check on login page:', { data, error });
+    };
+    
+    checkAuthStatus();
+  }, []);
 
   const emailForm = useForm<z.infer<typeof emailSchema>>({
     resolver: zodResolver(emailSchema),
@@ -58,6 +97,7 @@ const LoginPage = () => {
   const handleMagicLinkSubmit = async (values: z.infer<typeof emailSchema>) => {
     try {
       setLoading(true);
+      setAuthError(null);
       await signInWithMagicLink(values.email);
       setMagicLinkSent(true);
       setLoading(false);
@@ -67,6 +107,7 @@ const LoginPage = () => {
       });
     } catch (error: any) {
       setLoading(false);
+      setAuthError(error.message);
       toast({
         title: 'Error',
         description: error.message || 'Failed to send magic link',
@@ -78,6 +119,7 @@ const LoginPage = () => {
   const handleOTPSubmit = async (values: z.infer<typeof phoneSchema>) => {
     try {
       setLoading(true);
+      setAuthError(null);
       await signInWithOTP(values.phone);
       setOtpSent(true);
       setLoading(false);
@@ -87,6 +129,7 @@ const LoginPage = () => {
       });
     } catch (error: any) {
       setLoading(false);
+      setAuthError(error.message);
       toast({
         title: 'Error',
         description: error.message || 'Failed to send OTP',
@@ -98,11 +141,13 @@ const LoginPage = () => {
   const handlePasswordSubmit = async (values: z.infer<typeof passwordSchema>) => {
     try {
       setLoading(true);
+      setAuthError(null);
       await signIn(values.email, values.password);
       setLoading(false);
       navigate('/dashboard');
     } catch (error: any) {
       setLoading(false);
+      setAuthError(error.message);
       toast({
         title: 'Error',
         description: error.message || 'Invalid email or password',
@@ -114,16 +159,29 @@ const LoginPage = () => {
   const handleGoogleSignIn = async () => {
     try {
       setLoading(true);
+      setAuthError(null);
       await signInWithGoogle();
       // No need to navigate, the OAuth redirect will handle that
     } catch (error: any) {
       setLoading(false);
+      setAuthError(error.message);
       toast({
         title: 'Error',
         description: error.message || 'Failed to sign in with Google',
         variant: 'destructive',
       });
     }
+  };
+
+  const renderAuthError = () => {
+    if (!authError) return null;
+    
+    return (
+      <div className="mb-4 p-4 bg-red-100 text-red-800 rounded-md">
+        <p className="font-medium">Authentication Error</p>
+        <p>{authError}</p>
+      </div>
+    );
   };
 
   return (
@@ -143,6 +201,8 @@ const LoginPage = () => {
 
       <div className="mt-10 sm:mx-auto sm:w-full sm:max-w-[480px]">
         <div className="bg-white px-6 py-12 shadow sm:rounded-lg sm:px-12">
+          {renderAuthError()}
+          
           {magicLinkSent ? (
             <div className="text-center">
               <div className="mb-4 text-6xl">✉️</div>

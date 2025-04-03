@@ -35,6 +35,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    console.log('AuthProvider initialized');
+    
     // First, set up auth state listener to detect changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, currentSession) => {
@@ -59,48 +61,72 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   }, []);
 
   const signUp = async (email: string, password: string) => {
+    console.log('Attempting sign up for:', email);
     const { error } = await supabase.auth.signUp({
       email,
       password,
     });
-    if (error) throw error;
+    if (error) {
+      console.error('Sign up error:', error.message);
+      throw error;
+    }
   };
 
   const signIn = async (email: string, password: string) => {
+    console.log('Attempting sign in for:', email);
     const { error } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
-    if (error) throw error;
+    if (error) {
+      console.error('Sign in error:', error.message);
+      throw error;
+    }
   };
 
   const signInWithMagicLink = async (email: string) => {
+    console.log('Sending magic link to:', email);
     const { error } = await supabase.auth.signInWithOtp({
       email,
     });
-    if (error) throw error;
+    if (error) {
+      console.error('Magic link error:', error.message);
+      throw error;
+    }
   };
 
   const signInWithOTP = async (phone: string) => {
+    console.log('Sending OTP to:', phone);
     const { error } = await supabase.auth.signInWithOtp({
       phone,
     });
-    if (error) throw error;
+    if (error) {
+      console.error('OTP error:', error.message);
+      throw error;
+    }
   };
 
   const signInWithGoogle = async () => {
+    console.log('Initiating Google sign in');
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
         redirectTo: window.location.origin,
       },
     });
-    if (error) throw error;
+    if (error) {
+      console.error('Google sign in error:', error.message);
+      throw error;
+    }
   };
 
   const signOut = async () => {
+    console.log('Signing out');
     const { error } = await supabase.auth.signOut();
-    if (error) throw error;
+    if (error) {
+      console.error('Sign out error:', error.message);
+      throw error;
+    }
   };
 
   const value = {

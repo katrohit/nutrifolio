@@ -15,5 +15,14 @@ export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABL
     persistSession: true,
     autoRefreshToken: true,
     detectSessionInUrl: true,
+    flowType: 'implicit',
+  },
+  global: {
+    headers: {
+      'apikey': SUPABASE_PUBLISHABLE_KEY
+    }
   }
 });
+
+// Add debug logging to help troubleshoot auth issues
+console.log('Supabase client initialized with URL:', SUPABASE_URL);
