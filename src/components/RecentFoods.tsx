@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/lib/supabase';
@@ -65,7 +64,6 @@ const RecentFoods = () => {
 
       if (error) throw error;
 
-      // Update local state
       setFoods(foods.filter(food => food.id !== id));
       
       toast({

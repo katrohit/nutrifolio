@@ -1,7 +1,6 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { SendHorizonal, Plus, Loader2 } from 'lucide-react';
@@ -96,11 +95,11 @@ const ChatInterface = () => {
 
       // Add user message to chat
       const userMessage: ChatMessage = {
-        id: messageData.id,
+        id: messageData!.id,
         message: message.trim(),
         response: null,
         isUser: true,
-        createdAt: messageData.created_at,
+        createdAt: messageData!.created_at,
       };
       
       setChatHistory((prev) => [...prev, userMessage]);
@@ -120,13 +119,13 @@ const ChatInterface = () => {
           .update({
             response: aiResponseData.response,
           })
-          .eq('id', messageData.id);
+          .eq('id', messageData!.id);
           
         if (updateError) throw updateError;
         
         // Add AI response to chat
         const aiMessage: ChatMessage = {
-          id: messageData.id + '-response',
+          id: messageData!.id + '-response',
           message: aiResponseData.response,
           response: null,
           isUser: false,
@@ -153,10 +152,10 @@ const ChatInterface = () => {
           .update({
             response: fallbackResponse,
           })
-          .eq('id', messageData.id);
+          .eq('id', messageData!.id);
         
         const aiMessage: ChatMessage = {
-          id: messageData.id + '-response',
+          id: messageData!.id + '-response',
           message: fallbackResponse,
           response: null,
           isUser: false,
