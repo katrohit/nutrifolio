@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/components/ui/use-toast';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -34,15 +34,22 @@ import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { Loader2 } from 'lucide-react';
 
+const genderEnum = z.enum(['male', 'female', 'other']);
+const activityLevelEnum = z.enum(['sedentary', 'lightly_active', 'moderately_active', 'very_active', 'extremely_active']);
+const goalEnum = z.enum(['lose_weight', 'maintain_weight', 'gain_weight']);
+const unitsEnum = z.enum(['metric', 'imperial']);
+
 const profileSchema = z.object({
-  name: z.string().optional(),
+  first_name: z.string().optional(),
+  last_name: z.string().optional(),
   age: z.coerce.number().min(1, 'Age must be at least 1').max(120, 'Age cannot exceed 120'),
-  gender: z.enum(['male', 'female', 'other']),
+  gender: genderEnum,
   weight: z.coerce.number().min(20, 'Weight must be at least 20').max(500, 'Weight cannot exceed 500'),
   height: z.coerce.number().min(50, 'Height must be at least 50cm').max(250, 'Height cannot exceed 250cm'),
-  activity_level: z.enum(['sedentary', 'lightly_active', 'moderately_active', 'very_active', 'extremely_active']),
-  goal: z.enum(['lose_weight', 'maintain_weight', 'gain_weight']),
-  units: z.enum(['metric', 'imperial']),
+  activity_level: activityLevelEnum,
+  goal: goalEnum,
+  weight_unit: unitsEnum,
+  height_unit: unitsEnum,
   calorie_goal: z.coerce.number().min(500, 'Minimum 500 calories').max(10000, 'Maximum 10000 calories'),
   protein_goal: z.coerce.number().min(0, 'Cannot be negative'),
   carbs_goal: z.coerce.number().min(0, 'Cannot be negative'),
@@ -61,14 +68,16 @@ const ProfilePage = () => {
   const form = useForm<ProfileFormValues>({
     resolver: zodResolver(profileSchema),
     defaultValues: {
-      name: '',
+      first_name: '',
+      last_name: '',
       age: 30,
       gender: 'male',
       weight: 70,
       height: 170,
       activity_level: 'moderately_active',
       goal: 'maintain_weight',
-      units: 'metric',
+      weight_unit: 'metric',
+      height_unit: 'metric',
       calorie_goal: 2000,
       protein_goal: 150,
       carbs_goal: 200,
@@ -76,7 +85,8 @@ const ProfilePage = () => {
     },
   });
 
-  const watchedUnits = form.watch('units');
+  const watchedWeightUnit = form.watch('weight_unit');
+  const watchedHeightUnit = form.watch('height_unit');
   const watchedWeight = form.watch('weight');
   const watchedHeight = form.watch('height');
   const watchedActivityLevel = form.watch('activity_level');
@@ -103,16 +113,27 @@ const ProfilePage = () => {
       if (error) throw error;
 
       if (data) {
-        // Convert string values to numbers where needed
+        // Ensure gender is one of the allowed values or default to 'male'
+        const gender = isValidGender(data.gender) ? data.gender : 'male';
+        // Ensure activity_level is one of the allowed values or default to 'moderately_active'
+        const activity_level = isValidActivityLevel(data.activity_level) ? data.activity_level : 'moderately_active';
+        // Ensure goal is one of the allowed values or default to 'maintain_weight'
+        const goal = isValidGoal(data.goal) ? data.goal : 'maintain_weight';
+        // Convert weight_unit and height_unit to expected units format
+        const weight_unit = data.weight_unit === 'kg' ? 'metric' : 'imperial';
+        const height_unit = data.height_unit === 'cm' ? 'metric' : 'imperial';
+
         form.reset({
-          name: data.name || '',
+          first_name: data.first_name || '',
+          last_name: data.last_name || '',
           age: Number(data.age) || 30,
-          gender: data.gender || 'male',
+          gender,
           weight: Number(data.weight) || 70,
           height: Number(data.height) || 170,
-          activity_level: data.activity_level || 'moderately_active',
-          goal: data.goal || 'maintain_weight',
-          units: data.units || 'metric',
+          activity_level,
+          goal,
+          weight_unit,
+          height_unit,
           calorie_goal: Number(data.calorie_goal) || 2000,
           protein_goal: Number(data.protein_goal) || 150,
           carbs_goal: Number(data.carbs_goal) || 200,
@@ -132,6 +153,19 @@ const ProfilePage = () => {
     }
   };
 
+  // Helper functions to validate enums
+  const isValidGender = (value: any): value is z.infer<typeof genderEnum> => {
+    return ['male', 'female', 'other'].includes(value);
+  };
+
+  const isValidActivityLevel = (value: any): value is z.infer<typeof activityLevelEnum> => {
+    return ['sedentary', 'lightly_active', 'moderately_active', 'very_active', 'extremely_active'].includes(value);
+  };
+
+  const isValidGoal = (value: any): value is z.infer<typeof goalEnum> => {
+    return ['lose_weight', 'maintain_weight', 'gain_weight'].includes(value);
+  };
+
   const calculateNutrition = () => {
     setCalculatingNutrition(true);
 
@@ -140,9 +174,13 @@ const ProfilePage = () => {
       let weightKg = watchedWeight;
       let heightCm = watchedHeight;
       
-      if (watchedUnits === 'imperial') {
-        // Convert from lbs to kg and inches to cm
+      if (watchedWeightUnit === 'imperial') {
+        // Convert from lbs to kg
         weightKg = watchedWeight * 0.453592;
+      }
+      
+      if (watchedHeightUnit === 'imperial') {
+        // Convert from inches to cm
         heightCm = watchedHeight * 2.54;
       }
 
@@ -227,18 +265,24 @@ const ProfilePage = () => {
     try {
       setLoading(true);
       
+      // Convert weight_unit and height_unit back to database format
+      const weight_unit = data.weight_unit === 'metric' ? 'kg' : 'lb';
+      const height_unit = data.height_unit === 'metric' ? 'cm' : 'in';
+      
       const { error } = await supabase
         .from('profiles')
         .upsert({
           id: user?.id,
-          name: data.name,
+          first_name: data.first_name,
+          last_name: data.last_name,
           age: data.age,
           gender: data.gender,
           weight: data.weight,
           height: data.height,
           activity_level: data.activity_level,
           goal: data.goal,
-          units: data.units,
+          weight_unit,
+          height_unit,
           calorie_goal: data.calorie_goal,
           protein_goal: data.protein_goal,
           carbs_goal: data.carbs_goal,
@@ -286,20 +330,35 @@ const ProfilePage = () => {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <FormField
-                control={form.control}
-                name="name"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Name</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Your name" {...field} />
-                    </FormControl>
-                    <FormDescription>This is how we'll address you</FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+              <div className="flex flex-col gap-4 sm:flex-row sm:gap-6">
+                <FormField
+                  control={form.control}
+                  name="first_name"
+                  render={({ field }) => (
+                    <FormItem className="flex-1">
+                      <FormLabel>First Name</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Your first name" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                <FormField
+                  control={form.control}
+                  name="last_name"
+                  render={({ field }) => (
+                    <FormItem className="flex-1">
+                      <FormLabel>Last Name</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Your last name" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
               
               <FormField
                 control={form.control}
@@ -341,30 +400,57 @@ const ProfilePage = () => {
                 )}
               />
               
-              <FormField
-                control={form.control}
-                name="units"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Units</FormLabel>
-                    <FormControl>
-                      <Select 
-                        value={field.value} 
-                        onValueChange={field.onChange}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select units" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="metric">Metric (kg, cm)</SelectItem>
-                          <SelectItem value="imperial">Imperial (lb, in)</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+              <div className="flex flex-col gap-4 sm:flex-row sm:gap-6">
+                <FormField
+                  control={form.control}
+                  name="weight_unit"
+                  render={({ field }) => (
+                    <FormItem className="flex-1">
+                      <FormLabel>Weight Unit</FormLabel>
+                      <FormControl>
+                        <Select 
+                          value={field.value} 
+                          onValueChange={field.onChange}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select weight unit" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="metric">Metric (kg)</SelectItem>
+                            <SelectItem value="imperial">Imperial (lb)</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                <FormField
+                  control={form.control}
+                  name="height_unit"
+                  render={({ field }) => (
+                    <FormItem className="flex-1">
+                      <FormLabel>Height Unit</FormLabel>
+                      <FormControl>
+                        <Select 
+                          value={field.value} 
+                          onValueChange={field.onChange}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select height unit" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="metric">Metric (cm)</SelectItem>
+                            <SelectItem value="imperial">Imperial (in)</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
               
               <FormField
                 control={form.control}
@@ -372,10 +458,10 @@ const ProfilePage = () => {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>
-                      Weight ({watchedUnits === 'metric' ? 'kg' : 'lbs'})
+                      Weight ({watchedWeightUnit === 'metric' ? 'kg' : 'lbs'})
                     </FormLabel>
                     <FormControl>
-                      <Input type="number" {...field} />
+                      <Input type="number" step="0.1" {...field} onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -388,10 +474,10 @@ const ProfilePage = () => {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>
-                      Height ({watchedUnits === 'metric' ? 'cm' : 'inches'})
+                      Height ({watchedHeightUnit === 'metric' ? 'cm' : 'inches'})
                     </FormLabel>
                     <FormControl>
-                      <Input type="number" {...field} />
+                      <Input type="number" step="0.1" {...field} onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
