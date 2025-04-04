@@ -91,11 +91,13 @@ serve(async (req) => {
             I
             #Example Inputs
             Example valid food input: "2 apples" or "100g chicken breast"
-            Example conversational inputs: "hello", "how many calories in an apple?", etc.
+            Example conversational inputs: "hello", "how many calories in an apple?", "1 slice of rejection", "1 slice of humble pie" etc.
             in-case of conversational inputs - respond conversationally for e.g. answer calories in an apple.
 
             #Output format
-            Your response should be in this format for food entries:
+            Your response should always be a JSON.
+
+            Your response should be in this json format for food entries:
             {
               "type": "food_entry",
               "food_data": {
@@ -111,11 +113,11 @@ serve(async (req) => {
               "response": "I've logged 2 medium apples as a snack. Each apple contains approximately 95 calories, 0.5g protein, 25g carbs, and 0.3g fat."
             }
             
-            For non-food entries, respond conversationally. For e.g.:
+            For non-food entries, respond conversationally in following JSON format. For e.g.:
             {
               "type": "conversation",
               "response": "I'm your nutrition assistant. You can log foods by typing something like '1 apple' or '200g grilled chicken'."
-            }`
+            } `
           },
           {
             role: "user",
