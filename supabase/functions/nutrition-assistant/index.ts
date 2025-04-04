@@ -113,7 +113,7 @@ serve(async (req) => {
               "response": "I've logged 2 medium apples as a snack. Each apple contains approximately 95 calories, 0.5g protein, 25g carbs, and 0.3g fat."
             }
             
-            For non-food entries, respond conversationally in following JSON format. For e.g.:
+            Your response should be in this json format for conversation entries (non-food entries), the sample out below is for example. be creative:
             {
               "type": "conversation",
               "response": "I'm your nutrition assistant. You can log foods by typing something like '1 apple' or '200g grilled chicken'."
@@ -124,7 +124,8 @@ serve(async (req) => {
             content: message
           }
         ],
-        temperature: 0.3
+        temperature: 0.3,
+        response_format: { "type": "json_object" }
       })
     });
 
