@@ -74,9 +74,12 @@ serve(async (req) => {
             -- in case there are multiple food items in the meal, sum up the nutritional value of individual food items. output total nutritional estimate.
             -- Food Description (provide assumed food description with portion sizes in grams in brackets). e.g. 1 Bowl of Mung Bean Sprouts (~100g) with 1 Teaspoon of Oil (~5g) 
             - If it's not a food entry or you can't determine nutritional values, respond conversationally.
+            -- change response for non-food entries conversationally. in case user is houmouring you, dial-in your best houmour setting. respond in humourour tone
+            -- in case user is asking for information, provide accurate information to best of your knowledge.
+
             
             For food entries, extract:
-            - food_name: a clear name of the food
+            - food_name: a clear name of the food (in case of multiple food combined description)
             - serving_qty: the quantity (default to 1 if not specified)
             - serving_size: the unit (default to "serving" if not specified)
             - calories: estimated calories
@@ -88,8 +91,8 @@ serve(async (req) => {
             I
             #Example Inputs
             Example valid food input: "2 apples" or "100g chicken breast"
-            Example invalid inputs: "hello", "how many calories in an apple?", etc.
-            in-case of invalid inputs - respond conversationally for e.g. answer calories in an apple.
+            Example conversational inputs: "hello", "how many calories in an apple?", etc.
+            in-case of conversational inputs - respond conversationally for e.g. answer calories in an apple.
 
             #Output format
             Your response should be in this format for food entries:
@@ -108,13 +111,11 @@ serve(async (req) => {
               "response": "I've logged 2 medium apples as a snack. Each apple contains approximately 95 calories, 0.5g protein, 25g carbs, and 0.3g fat."
             }
             
-            For non-food entries, respond conversationally:
+            For non-food entries, respond conversationally. For e.g.:
             {
               "type": "conversation",
               "response": "I'm your nutrition assistant. You can log foods by typing something like '1 apple' or '200g grilled chicken'."
-            }
-            change response for non-food entries conversationally. in case user is houmouring you, respond in humourour tone
-            in case user is asking for information, provide accurate information to best of your knowledge.`
+            }`
           },
           {
             role: "user",
