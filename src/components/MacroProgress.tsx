@@ -26,10 +26,15 @@ const MacroProgress = ({
       <div className="flex items-center justify-between">
         <span className="font-medium">{label}</span>
         <span className="text-sm text-muted-foreground">
-          {current}{unit} / {target}{unit}
+          {current.toFixed(1)}{unit} / {target}{unit}
         </span>
       </div>
-      <Progress value={percentage} className={color} />
+      <div className="h-3 w-full rounded-full bg-muted/50">
+        <div 
+          className={cn("h-full rounded-full transition-all", color)} 
+          style={{ width: `${percentage}%` }}
+        />
+      </div>
     </div>
   );
 };

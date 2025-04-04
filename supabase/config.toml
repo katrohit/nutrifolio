@@ -1,1 +1,4 @@
+
 project_id = "wpckzzjlhusvhmckrwen"
+[functions.nutrition-assistant]
+verify_jwt = true

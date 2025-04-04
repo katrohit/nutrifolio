@@ -3,7 +3,7 @@ import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/button';
-import { Home, Calendar, User, LogOut } from 'lucide-react';
+import { Home, Calendar, User, LogOut, PieChart, MessageSquare } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const Navigation = () => {
@@ -27,16 +27,29 @@ const Navigation = () => {
 
         {/* Nav Links */}
         <Link 
-          to="/dashboard" 
+          to="/track" 
           className={cn(
             "flex items-center gap-3 rounded-md px-4 py-2 transition-colors",
-            isActive("/dashboard") 
+            isActive("/track") || isActive("/dashboard")
               ? "bg-primary text-primary-foreground" 
               : "text-foreground hover:bg-muted"
           )}
         >
-          <Home className="h-5 w-5" />
-          <span className="hidden md:inline">Dashboard</span>
+          <MessageSquare className="h-5 w-5" />
+          <span className="hidden md:inline">Track</span>
+        </Link>
+        
+        <Link 
+          to="/analyze" 
+          className={cn(
+            "flex items-center gap-3 rounded-md px-4 py-2 transition-colors",
+            isActive("/analyze") 
+              ? "bg-primary text-primary-foreground" 
+              : "text-foreground hover:bg-muted"
+          )}
+        >
+          <PieChart className="h-5 w-5" />
+          <span className="hidden md:inline">Analyze</span>
         </Link>
         
         <Link 

@@ -1,153 +1,185 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
+
+// Retrieve environment variables
+const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
+const supabaseUrl = Deno.env.get('SUPABASE_URL');
+const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+
+interface RequestData {
+  message: string;
+  userId: string;
+}
+
+interface FoodData {
+  food_name: string;
+  serving_qty: number;
+  serving_size: string;
+  calories: number;
+  protein: number;
+  carbs: number;
+  fat: number;
+  meal_type: string;
+}
 
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders })
+    return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const { message, userId } = await req.json();
+    // Parse the request
+    const { message, userId } = await req.json() as RequestData;
     
-    if (!message) {
-      return new Response(
-        JSON.stringify({ error: "Message is required" }),
-        {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-          status: 400,
-        }
-      );
+    // Initialize Supabase client with service role key
+    const supabase = createClient(
+      supabaseUrl ?? '',
+      supabaseServiceKey ?? ''
+    );
+    
+    if (!openAIApiKey) {
+      throw new Error('OpenAI API key is missing');
     }
 
-    // This is where you would typically call an AI service like OpenAI
-    // For now, we'll implement a simple rule-based assistant that can recognize food items
-    
-    const lowercaseMessage = message.toLowerCase();
-    let response = "";
-    let foodData = null;
-    
-    if (lowercaseMessage.includes("banana")) {
-      response = "I've logged 1 medium banana (118g): 105 calories, 0.3g fat, 1.3g protein, 27g carbs";
-      foodData = {
-        food_name: "Banana",
-        brand: null,
-        calories: 105,
-        protein: 1.3,
-        carbs: 27,
-        fat: 0.3,
-        meal_type: getMealTypeByTime(),
-        serving_size: "medium (118g)",
-        serving_qty: 1,
-        log_date: new Date().toISOString().split("T")[0],
-      };
-    } else if (lowercaseMessage.includes("apple")) {
-      response = "I've logged 1 medium apple (182g): 95 calories, 0.3g fat, 0.5g protein, 25g carbs";
-      foodData = {
-        food_name: "Apple",
-        brand: null,
-        calories: 95,
-        protein: 0.5,
-        carbs: 25,
-        fat: 0.3,
-        meal_type: getMealTypeByTime(),
-        serving_size: "medium (182g)",
-        serving_qty: 1,
-        log_date: new Date().toISOString().split("T")[0],
-      };
-    } else if (lowercaseMessage.includes("chicken")) {
-      const weight = lowercaseMessage.match(/\d+g/) 
-        ? parseInt(lowercaseMessage.match(/\d+g/)![0]) 
-        : 100;
-      
-      const multiplier = weight / 100;
-      
-      response = `I've logged ${weight}g of grilled chicken breast: ${Math.round(165 * multiplier)} calories, ${(3.6 * multiplier).toFixed(1)}g fat, ${(31 * multiplier).toFixed(1)}g protein, 0g carbs`;
-      
-      foodData = {
-        food_name: "Grilled Chicken Breast",
-        brand: null,
-        calories: Math.round(165 * multiplier),
-        protein: Math.round(31 * multiplier * 10) / 10,
-        carbs: 0,
-        fat: Math.round(3.6 * multiplier * 10) / 10,
-        meal_type: getMealTypeByTime(),
-        serving_size: `${weight}g`,
-        serving_qty: 1,
-        log_date: new Date().toISOString().split("T")[0],
-      };
-    } else {
-      response = "I didn't recognize any food in your message. Try mentioning specific foods like 'banana', 'apple', or 'chicken'.";
+    console.log(`Processing message: "${message}" for user ${userId}`);
+
+    // Call OpenAI API to analyze the food entry
+    const openAIResponse = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${openAIApiKey}`
+      },
+      body: JSON.stringify({
+        model: "gpt-4o-mini",
+        messages: [
+          {
+            role: "system",
+            content: `You are a nutrition analysis assistant. Analyze food entries and provide nutritional information. 
+            If the user input is a valid food entry, respond with a JSON object containing the nutritional breakdown. 
+            If it's not a food entry or you can't determine nutritional values, respond conversationally.
+            
+            For food entries, extract:
+            - food_name: a clear name of the food
+            - serving_qty: the quantity (default to 1 if not specified)
+            - serving_size: the unit (default to "serving" if not specified)
+            - calories: estimated calories
+            - protein: grams of protein
+            - carbs: grams of carbohydrates
+            - fat: grams of fat
+            - meal_type: Breakfast, Lunch, Dinner, or Snack (default to Snack if not specified)
+            
+            Example valid food input: "2 apples" or "100g chicken breast"
+            Example invalid inputs: "hello", "how many calories in an apple?", etc.
+            
+            Your response should be in this format for food entries:
+            {
+              "type": "food_entry",
+              "food_data": {
+                "food_name": "Apple",
+                "serving_qty": 2,
+                "serving_size": "medium",
+                "calories": 95,
+                "protein": 0.5,
+                "carbs": 25,
+                "fat": 0.3,
+                "meal_type": "Snack"
+              },
+              "response": "I've logged 2 medium apples as a snack. Each apple contains approximately 95 calories, 0.5g protein, 25g carbs, and 0.3g fat."
+            }
+            
+            For non-food entries, respond conversationally:
+            {
+              "type": "conversation",
+              "response": "I'm your nutrition assistant. You can log foods by typing something like '1 apple' or '200g grilled chicken'."
+            }`
+          },
+          {
+            role: "user",
+            content: message
+          }
+        ],
+        temperature: 0.3
+      })
+    });
+
+    if (!openAIResponse.ok) {
+      const errorData = await openAIResponse.json();
+      console.error("OpenAI API error:", errorData);
+      throw new Error(`OpenAI API error: ${errorData.error?.message || "Unknown error"}`);
     }
-    
-    // If we identified food and have a user ID, log it to the database
-    if (foodData && userId) {
-      const { error: supabaseError } = await logFoodToDatabase(userId, foodData);
-      if (supabaseError) {
-        console.error("Error logging food:", supabaseError);
+
+    const data = await openAIResponse.json();
+    const aiResponse = data.choices[0].message.content;
+    console.log("OpenAI response:", aiResponse);
+
+    let foodData: FoodData | null = null;
+    let finalResponse = aiResponse;
+
+    // Try to parse the response as JSON
+    try {
+      const parsedResponse = JSON.parse(aiResponse);
+      
+      if (parsedResponse.type === "food_entry" && parsedResponse.food_data) {
+        foodData = parsedResponse.food_data;
+        finalResponse = parsedResponse.response;
+        
+        // Log the food entry to the database
+        const today = new Date().toISOString().split('T')[0];
+        
+        const { error: foodLogError } = await supabase
+          .from('food_logs')
+          .insert({
+            user_id: userId,
+            food_name: foodData.food_name,
+            serving_qty: foodData.serving_qty,
+            serving_size: foodData.serving_size,
+            calories: foodData.calories,
+            protein: foodData.protein,
+            carbs: foodData.carbs,
+            fat: foodData.fat,
+            meal_type: foodData.meal_type,
+            log_date: today
+          });
+          
+        if (foodLogError) {
+          console.error("Error logging food to database:", foodLogError);
+          throw new Error(`Error logging food: ${foodLogError.message}`);
+        }
+        
+        console.log(`Successfully logged food entry: ${foodData.food_name}`);
+      } else {
+        finalResponse = parsedResponse.response;
       }
+    } catch (parseError) {
+      console.warn("Failed to parse OpenAI response as JSON. Using raw response:", parseError);
+      finalResponse = aiResponse;
     }
 
     return new Response(
-      JSON.stringify({ 
-        response,
-        foodData
+      JSON.stringify({
+        response: finalResponse,
+        foodData: foodData
       }),
-      {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: 200,
-      }
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
+
   } catch (error) {
     console.error("Error in nutrition-assistant function:", error);
+    
     return new Response(
-      JSON.stringify({ error: error.message || "An error occurred" }),
-      {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      JSON.stringify({ error: error.message || "Unknown error occurred" }),
+      { 
         status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       }
     );
   }
 });
-
-// Helper function to get meal type based on time of day
-function getMealTypeByTime() {
-  const hour = new Date().getUTCHours();
-  
-  if (hour >= 5 && hour < 10) return "Breakfast";
-  if (hour >= 10 && hour < 12) return "Morning Snack";
-  if (hour >= 12 && hour < 15) return "Lunch";
-  if (hour >= 15 && hour < 18) return "Afternoon Snack";
-  if (hour >= 18 && hour < 21) return "Dinner";
-  return "Evening Snack";
-}
-
-// Helper function to log food to the database
-async function logFoodToDatabase(userId: string, foodData: any) {
-  const { createClient } = await import("https://esm.sh/@supabase/supabase-js@2.39.6");
-  
-  const supabaseUrl = Deno.env.get("SUPABASE_URL") || "https://wpckzzjlhusvhmckrwen.supabase.co";
-  const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
-  
-  const supabase = createClient(supabaseUrl, supabaseKey);
-  
-  return await supabase.from("food_logs").insert({
-    user_id: userId,
-    food_name: foodData.food_name,
-    brand: foodData.brand,
-    calories: foodData.calories,
-    protein: foodData.protein,
-    carbs: foodData.carbs,
-    fat: foodData.fat,
-    meal_type: foodData.meal_type,
-    serving_size: foodData.serving_size,
-    serving_qty: foodData.serving_qty,
-    log_date: foodData.log_date,
-  });
-}

@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -127,7 +128,7 @@ const DailySummary = () => {
   }
 
   return (
-    <Card>
+    <Card className="h-full">
       <CardHeader>
         <CardTitle className="text-lg">Daily Summary</CardTitle>
       </CardHeader>
@@ -143,19 +144,19 @@ const DailySummary = () => {
             label="Protein" 
             current={nutritionData.protein.consumed} 
             target={nutritionData.protein.goal} 
-            color="bg-nutrifolio-secondary"
+            color="bg-blue-500"
           />
           <MacroProgress 
             label="Carbs" 
             current={nutritionData.carbs.consumed} 
             target={nutritionData.carbs.goal}
-            color="bg-nutrifolio-primary" 
+            color="bg-green-500" 
           />
           <MacroProgress 
             label="Fat" 
             current={nutritionData.fat.consumed} 
             target={nutritionData.fat.goal}
-            color="bg-nutrifolio-accent" 
+            color="bg-amber-500" 
           />
         </div>
       </CardContent>
