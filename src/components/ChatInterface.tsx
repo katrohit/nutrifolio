@@ -4,7 +4,7 @@ import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { SendHorizonal, Plus, Loader2, Edit, Trash2 } from 'lucide-react';
+import { SendHorizonal, Plus, Loader2 } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { format } from 'date-fns';
 
@@ -59,7 +59,7 @@ const ChatInterface = () => {
         .select('id, message, response, is_user, created_at')
         .eq('user_id', user.id)
         .order('created_at', { ascending: true })
-        .limit(30);
+        .limit(50);
 
       if (error) {
         throw error;
@@ -67,29 +67,13 @@ const ChatInterface = () => {
 
       // Format the data for our component
       if (data) {
-        const formattedMessages: ChatMessage[] = [];
-        
-        data.forEach(item => {
-          // Add user message
-          formattedMessages.push({
-            id: item.id,
-            message: item.message,
-            response: null,
-            isUser: item.is_user,
-            createdAt: item.created_at,
-          });
-          
-          // Add assistant response if it exists and this is a user message
-          if (item.response && item.is_user) {
-            formattedMessages.push({
-              id: `${item.id}-response`,
-              message: item.response,
-              response: null,
-              isUser: false,
-              createdAt: item.created_at,
-            });
-          }
-        });
+        const formattedMessages: ChatMessage[] = data.map(item => ({
+          id: item.id,
+          message: item.message,
+          response: item.response,
+          isUser: item.is_user,
+          createdAt: item.created_at,
+        }));
         
         setChatHistory(formattedMessages);
       }
@@ -154,27 +138,30 @@ const ChatInterface = () => {
           
         if (updateError) throw updateError;
         
-        // Add AI response to chat - also store in database as a separate message
-        const aiMessage: ChatMessage = {
-          id: messageData!.id + '-response',
-          message: aiResponseData.response,
-          response: null,
-          isUser: false,
-          createdAt: new Date().toISOString(),
-        };
-        
         // Insert AI response as a separate message in the database
-        const { error: aiMessageError } = await supabase
+        const { data: aiMessageData, error: aiMessageError } = await supabase
           .from('chat_messages')
           .insert({
             user_id: user.id,
             message: aiResponseData.response,
             is_user: false,
-          });
+          })
+          .select('id, created_at')
+          .single();
 
         if (aiMessageError) {
           console.error('Error storing AI message:', aiMessageError);
+          throw aiMessageError;
         }
+        
+        // Add AI response to chat
+        const aiMessage: ChatMessage = {
+          id: aiMessageData!.id,
+          message: aiResponseData.response,
+          response: null,
+          isUser: false,
+          createdAt: aiMessageData!.created_at,
+        };
         
         setChatHistory((prev) => [...prev, aiMessage]);
 
@@ -191,6 +178,7 @@ const ChatInterface = () => {
         // Add a fallback AI response in case the edge function fails
         const fallbackResponse = "I'm having trouble processing your request right now. Please try again later.";
         
+        // Update the existing message with the fallback response
         await supabase
           .from('chat_messages')
           .update({
@@ -198,24 +186,28 @@ const ChatInterface = () => {
           })
           .eq('id', messageData!.id);
         
-        // Also insert the fallback response as its own message
-        await supabase
+        // Insert the fallback response as a system message
+        const { data: fallbackData, error: fallbackError } = await supabase
           .from('chat_messages')
           .insert({
             user_id: user.id,
             message: fallbackResponse,
             is_user: false,
-          });
-        
-        const aiMessage: ChatMessage = {
-          id: messageData!.id + '-response',
-          message: fallbackResponse,
-          response: null,
-          isUser: false,
-          createdAt: new Date().toISOString(),
-        };
-        
-        setChatHistory((prev) => [...prev, aiMessage]);
+          })
+          .select('id, created_at')
+          .single();
+          
+        if (!fallbackError && fallbackData) {
+          const aiMessage: ChatMessage = {
+            id: fallbackData.id,
+            message: fallbackResponse,
+            response: null,
+            isUser: false,
+            createdAt: fallbackData.created_at,
+          };
+          
+          setChatHistory((prev) => [...prev, aiMessage]);
+        }
         
         toast({
           title: 'Error',
