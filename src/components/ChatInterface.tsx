@@ -233,7 +233,7 @@ const ChatInterface = () => {
   };
   
   return (
-    <div className="flex h-full flex-col rounded-lg border bg-white shadow-sm">
+    <div className="flex h-full w-full flex-col rounded-lg border bg-white shadow-sm">
       {/* Chat history */}
       <div ref={chatContainerRef} className="chat-scrollbar flex flex-1 flex-col gap-4 overflow-y-auto p-4">
         {chatHistory.length === 0 ? (
