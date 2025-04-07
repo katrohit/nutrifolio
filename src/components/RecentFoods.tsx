@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -35,7 +34,6 @@ const EditFoodDialog = ({ food, onSave, open, onOpenChange }: EditFoodDialogProp
   const [editedFood, setEditedFood] = useState<FoodLogItem>({...food});
   const { toast } = useToast();
   
-  // Reset form when a new food item is selected
   useEffect(() => {
     setEditedFood({...food});
   }, [food]);
@@ -43,7 +41,6 @@ const EditFoodDialog = ({ food, onSave, open, onOpenChange }: EditFoodDialogProp
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     
-    // Convert numeric fields
     if (['calories', 'serving_qty', 'protein', 'carbs', 'fat'].includes(name)) {
       setEditedFood({
         ...editedFood,
@@ -259,6 +256,8 @@ const RecentFoods = () => {
 
       setFoods(foods.filter(food => food.id !== id));
       
+      window.dispatchEvent(new CustomEvent('food-log-updated'));
+      
       toast({
         title: 'Food deleted',
         description: 'The food entry has been removed from your log.',
@@ -296,10 +295,11 @@ const RecentFoods = () => {
 
       if (error) throw error;
       
-      // Update the state with the edited food
       setFoods(foods.map(food => 
         food.id === updatedFood.id ? updatedFood : food
       ));
+      
+      window.dispatchEvent(new CustomEvent('food-log-updated'));
       
       toast({
         title: 'Food updated',

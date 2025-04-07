@@ -43,6 +43,18 @@ const DailySummary = () => {
     if (user) {
       fetchUserData();
       fetchTodaysNutrition();
+      
+      // Add event listener for food log updates
+      const handleFoodLogUpdated = () => {
+        fetchTodaysNutrition();
+      };
+      
+      window.addEventListener('food-log-updated', handleFoodLogUpdated);
+      
+      // Clean up event listener
+      return () => {
+        window.removeEventListener('food-log-updated', handleFoodLogUpdated);
+      };
     }
   }, [user]);
 
@@ -106,7 +118,14 @@ const DailySummary = () => {
           loading: false
         }));
       } else {
-        setNutritionData(prev => ({ ...prev, loading: false }));
+        setNutritionData(prev => ({
+          ...prev,
+          calories: { ...prev.calories, consumed: 0 },
+          protein: { ...prev.protein, consumed: 0 },
+          carbs: { ...prev.carbs, consumed: 0 },
+          fat: { ...prev.fat, consumed: 0 },
+          loading: false
+        }));
       }
     } catch (error) {
       console.error('Error fetching today\'s nutrition:', error);

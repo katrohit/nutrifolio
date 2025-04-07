@@ -3,15 +3,13 @@ import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { SendHorizonal, Plus, Loader2 } from 'lucide-react';
-import { QuickSelectItem } from './QuickSelectItems';
 
 interface ChatInputBarProps {
   onSubmit: (message: string) => Promise<void>;
   loading: boolean;
-  quickSelectItems?: QuickSelectItem[];
 }
 
-const ChatInputBar = ({ onSubmit, loading, quickSelectItems }: ChatInputBarProps) => {
+const ChatInputBar = ({ onSubmit, loading }: ChatInputBarProps) => {
   const [message, setMessage] = useState('');
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -22,29 +20,8 @@ const ChatInputBar = ({ onSubmit, loading, quickSelectItems }: ChatInputBarProps
     setMessage('');
   };
 
-  const handleQuickSelectClick = async (item: string) => {
-    if (loading) return;
-    await onSubmit(item);
-  };
-
   return (
     <div className="border-t p-4">
-      {quickSelectItems && quickSelectItems.length > 0 && (
-        <div className="mb-3 flex flex-wrap gap-2">
-          {quickSelectItems.map((item, index) => (
-            <Button
-              key={index}
-              variant="outline"
-              size="sm"
-              className="animate-fade-in"
-              onClick={() => handleQuickSelectClick(item.text)}
-              disabled={loading}
-            >
-              {item.text}
-            </Button>
-          ))}
-        </div>
-      )}
       <form onSubmit={handleSubmit} className="flex items-center gap-2">
         <Button
           type="button"
