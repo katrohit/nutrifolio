@@ -15,6 +15,7 @@ const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
 interface RequestData {
   message: string;
   userId: string;
+  timestamp?: string; // Optional timestamp in user's timezone
 }
 
 interface FoodData {
@@ -28,6 +29,30 @@ interface FoodData {
   meal_type: string;
 }
 
+function inferMealType(timestamp: string | undefined): string {
+  if (!timestamp) return "Snack";
+  
+  try {
+    const date = new Date(timestamp);
+    const hours = date.getHours();
+    
+    if (hours >= 5 && hours < 10) {
+      return "Breakfast";
+    } else if (hours >= 10 && hours < 15) {
+      return "Lunch";
+    } else if (hours >= 15 && hours < 19) {
+      return "Snack";
+    } else if (hours >= 19 && hours < 23) {
+      return "Dinner";
+    } else {
+      return "Snack";
+    }
+  } catch (e) {
+    console.error("Error parsing timestamp:", e);
+    return "Snack";
+  }
+}
+
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -36,7 +61,7 @@ serve(async (req) => {
 
   try {
     // Parse the request
-    const { message, userId } = await req.json() as RequestData;
+    const { message, userId, timestamp } = await req.json() as RequestData;
     
     // Initialize Supabase client with service role key
     const supabase = createClient(
@@ -48,7 +73,20 @@ serve(async (req) => {
       throw new Error('OpenAI API key is missing');
     }
 
-    console.log(`Processing message: "${message}" for user ${userId}`);
+    const inferredMealType = inferMealType(timestamp);
+    console.log(`Processing message: "${message}" for user ${userId}, inferredMealType: ${inferredMealType}`);
+
+    // Check recent food logs to provide context
+    const { data: recentFoods } = await supabase
+      .from('food_logs')
+      .select('food_name')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
+      .limit(5);
+    
+    const recentFoodsContext = recentFoods && recentFoods.length > 0 
+      ? `Recently logged foods: ${recentFoods.map(f => f.food_name).join(', ')}.` 
+      : '';
 
     // Call OpenAI API to analyze the food entry
     const openAIResponse = await fetch("https://api.openai.com/v1/chat/completions", {
@@ -66,6 +104,11 @@ serve(async (req) => {
             # IDENTITY and PURPOSE
             You are an nutrition analysis assistant AI built for Food calorie tracking. 
             You interpret nutritional value of the food based on the meal description, and share the output in a structured form.
+            
+            # CONTEXT INFORMATION
+            The user's current local time corresponds to ${inferredMealType.toLowerCase()} time.
+            ${recentFoodsContext}
+            
             # STEPS 
             - If the user input is a valid food entry, respond with a JSON object containing the nutritional breakdown.
             -- Based on the description, try to assume the food or foods that are included in this meal.
@@ -86,9 +129,8 @@ serve(async (req) => {
             - protein: grams of protein
             - carbs: grams of carbohydrates
             - fat: grams of fat
-            - meal_type: Breakfast, Lunch, Dinner, or Snack (default to Snack if not specified)
+            - meal_type: Use "${inferredMealType}" as the default based on the user's current time, but change it if the user explicitly mentions a different meal type
 
-            I
             #Example Inputs
             Example valid food input: "2 apples" or "100g chicken breast"
             Example conversational inputs: "hello", "how many calories in an apple?", "1 slice of rejection", "1 slice of humble pie" etc.
@@ -108,9 +150,9 @@ serve(async (req) => {
                 "protein": 0.5,
                 "carbs": 25,
                 "fat": 0.3,
-                "meal_type": "Snack"
+                "meal_type": "${inferredMealType}"
               },
-              "response": "I've logged 2 medium apples as a snack. Each apple contains approximately 95 calories, 0.5g protein, 25g carbs, and 0.3g fat."
+              "response": "I've logged 2 medium apples as a ${inferredMealType.toLowerCase()}. Each apple contains approximately 95 calories, 0.5g protein, 25g carbs, and 0.3g fat."
             }
             
             Your response should be in this json format for conversation entries (non-food entries), the sample out below is for example. be creative:

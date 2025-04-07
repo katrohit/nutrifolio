@@ -2,11 +2,11 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
-import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
-import { SendHorizonal, Plus, Loader2 } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
-import { format } from 'date-fns';
+import ChatBubble from './chat/ChatBubble';
+import ChatInputBar from './chat/ChatInputBar';
+import { useRecentFoods } from '@/hooks/useRecentFoods';
+import { generateQuickSelectItems, QuickSelectItem } from './chat/QuickSelectItems';
 
 type ChatMessage = {
   id: string;
@@ -17,13 +17,14 @@ type ChatMessage = {
 };
 
 const ChatInterface = () => {
-  const [message, setMessage] = useState('');
   const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
   const [loading, setLoading] = useState(false);
+  const [quickSelectItems, setQuickSelectItems] = useState<QuickSelectItem[]>([]);
   const bottomRef = useRef<HTMLDivElement>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
   const { user } = useAuth();
   const { toast } = useToast();
+  const { recentFoods, refetch: refetchRecentFoods } = useRecentFoods(10);
   
   useEffect(() => {
     // Fetch chat history on component mount
@@ -35,6 +36,17 @@ const ChatInterface = () => {
   useEffect(() => {
     // Scroll to bottom when chat history changes
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+    
+    // Generate quick select items based on the last message
+    if (chatHistory.length > 0) {
+      const lastMessage = chatHistory[chatHistory.length - 1];
+      if (!lastMessage.isUser) {
+        const items = generateQuickSelectItems(lastMessage.message);
+        setQuickSelectItems(items);
+      } else {
+        setQuickSelectItems([]);
+      }
+    }
   }, [chatHistory]);
 
   // Handle keyboard showing on mobile
@@ -48,6 +60,18 @@ const ChatInterface = () => {
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
+  
+  // Generate recent food quick select items
+  useEffect(() => {
+    if (recentFoods.length > 0 && chatHistory.length === 0) {
+      // Show recent foods as quick select items when chat is empty
+      const recentItems = recentFoods.slice(0, 5).map(food => ({
+        text: food.food_name,
+        category: food.meal_type
+      }));
+      setQuickSelectItems(recentItems);
+    }
+  }, [recentFoods, chatHistory]);
 
   const fetchChatHistory = async () => {
     if (!user) return;
@@ -87,14 +111,15 @@ const ChatInterface = () => {
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
+  const handleSubmit = async (message: string) => {
     if (!message.trim() || !user) return;
     
     setLoading(true);
     
     try {
+      // Get user's local timestamp for meal type inference
+      const userTimestamp = new Date().toISOString();
+      
       // Insert user message to DB
       const { data: messageData, error: messageError } = await supabase
         .from('chat_messages')
@@ -118,12 +143,16 @@ const ChatInterface = () => {
       };
       
       setChatHistory((prev) => [...prev, userMessage]);
-      setMessage('');
+      setQuickSelectItems([]); // Clear quick select items while loading
 
       try {
-        // Call the nutrition-assistant edge function
+        // Call the nutrition-assistant edge function with timestamp
         const { data: aiResponseData, error: aiError } = await supabase.functions.invoke('nutrition-assistant', {
-          body: { message: message.trim(), userId: user.id }
+          body: { 
+            message: message.trim(), 
+            userId: user.id,
+            timestamp: userTimestamp
+          }
         });
         
         if (aiError) throw aiError;
@@ -171,6 +200,9 @@ const ChatInterface = () => {
             title: 'Food logged successfully',
             description: `Added ${aiResponseData.foodData.food_name} to your ${aiResponseData.foodData.meal_type.toLowerCase()}`,
           });
+          
+          // Refresh recent foods list
+          refetchRecentFoods();
         }
       } catch (error) {
         console.error('Error calling nutrition assistant:', error);
@@ -228,16 +260,6 @@ const ChatInterface = () => {
       });
     }
   };
-
-  // Format timestamp
-  const formatTimestamp = (timestamp: string) => {
-    try {
-      return format(new Date(timestamp), 'h:mm a');
-    } catch (error) {
-      console.error('Error formatting timestamp:', error);
-      return '';
-    }
-  };
   
   return (
     <div className="flex h-full flex-col rounded-lg border bg-white shadow-sm">
@@ -253,29 +275,12 @@ const ChatInterface = () => {
         ) : (
           <>
             {chatHistory.map((chat) => (
-              <div
+              <ChatBubble 
                 key={chat.id}
-                className={`flex w-full ${
-                  chat.isUser ? 'justify-end' : 'justify-start'
-                }`}
-              >
-                <div className="flex flex-col">
-                  <div
-                    className={`max-w-[300px] rounded-lg px-4 py-2 ${
-                      chat.isUser
-                        ? 'bg-primary text-primary-foreground'
-                        : 'bg-muted text-foreground'
-                    }`}
-                  >
-                    {chat.message}
-                  </div>
-                  <div className={`mt-1 text-xs text-muted-foreground ${
-                    chat.isUser ? 'text-right' : 'text-left'
-                  }`}>
-                    {formatTimestamp(chat.createdAt)}
-                  </div>
-                </div>
-              </div>
+                message={chat.message}
+                isUser={chat.isUser}
+                timestamp={chat.createdAt}
+              />
             ))}
             <div ref={bottomRef} />
           </>
@@ -283,43 +288,11 @@ const ChatInterface = () => {
       </div>
 
       {/* Input area */}
-      <div className="border-t p-4">
-        <form onSubmit={handleSubmit} className="flex items-center gap-2">
-          <Button
-            type="button"
-            size="icon"
-            variant="outline"
-            className="h-10 w-10 shrink-0"
-          >
-            <Plus className="h-5 w-5" />
-          </Button>
-          <Textarea
-            value={message}
-            onChange={(e) => setMessage(e.target.value)}
-            placeholder="Type a food to log (e.g. '1 banana')"
-            className="min-h-10 flex-1 resize-none"
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                handleSubmit(e);
-              }
-            }}
-            disabled={loading}
-          />
-          <Button
-            type="submit"
-            size="icon"
-            disabled={!message.trim() || loading}
-            className="h-10 w-10 shrink-0"
-          >
-            {loading ? (
-              <Loader2 className="h-5 w-5 animate-spin" />
-            ) : (
-              <SendHorizonal className="h-5 w-5" />
-            )}
-          </Button>
-        </form>
-      </div>
+      <ChatInputBar 
+        onSubmit={handleSubmit}
+        loading={loading}
+        quickSelectItems={quickSelectItems}
+      />
     </div>
   );
 };
