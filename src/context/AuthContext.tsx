@@ -12,7 +12,6 @@ interface AuthContextProps {
   signInWithMagicLink: (email: string) => Promise<void>;
   signInWithGoogle: () => Promise<void>;
   signOut: () => Promise<void>;
-  signInWithOTP: (phone: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextProps | undefined>(undefined);
@@ -95,17 +94,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
-  const signInWithOTP = async (phone: string) => {
-    console.log('Sending OTP to:', phone);
-    const { error } = await supabase.auth.signInWithOtp({
-      phone,
-    });
-    if (error) {
-      console.error('OTP error:', error.message);
-      throw error;
-    }
-  };
-
   const signInWithGoogle = async () => {
     console.log('Initiating Google sign in');
     const { error } = await supabase.auth.signInWithOAuth({
@@ -138,7 +126,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     signInWithMagicLink,
     signInWithGoogle,
     signOut,
-    signInWithOTP,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

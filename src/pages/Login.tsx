@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { z } from 'zod';
@@ -23,22 +24,17 @@ const emailSchema = z.object({
   email: z.string().email('Please enter a valid email address'),
 });
 
-const phoneSchema = z.object({
-  phone: z.string().min(10, 'Please enter a valid phone number'),
-});
-
 const passwordSchema = z.object({
   email: z.string().email('Please enter a valid email address'),
   password: z.string().min(6, 'Password must be at least 6 characters'),
 });
 
 const LoginPage = () => {
-  const { signInWithMagicLink, signIn, signInWithGoogle, signInWithOTP, user } = useAuth();
+  const { signInWithMagicLink, signIn, signInWithGoogle, user } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [magicLinkSent, setMagicLinkSent] = useState(false);
-  const [otpSent, setOtpSent] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -84,11 +80,6 @@ const LoginPage = () => {
     defaultValues: { email: '' },
   });
 
-  const phoneForm = useForm<z.infer<typeof phoneSchema>>({
-    resolver: zodResolver(phoneSchema),
-    defaultValues: { phone: '' },
-  });
-
   const passwordForm = useForm<z.infer<typeof passwordSchema>>({
     resolver: zodResolver(passwordSchema),
     defaultValues: { email: '', password: '' },
@@ -111,28 +102,6 @@ const LoginPage = () => {
       toast({
         title: 'Error',
         description: error.message || 'Failed to send magic link',
-        variant: 'destructive',
-      });
-    }
-  };
-
-  const handleOTPSubmit = async (values: z.infer<typeof phoneSchema>) => {
-    try {
-      setLoading(true);
-      setAuthError(null);
-      await signInWithOTP(values.phone);
-      setOtpSent(true);
-      setLoading(false);
-      toast({
-        title: 'OTP sent',
-        description: 'Check your phone for a verification code',
-      });
-    } catch (error: any) {
-      setLoading(false);
-      setAuthError(error.message);
-      toast({
-        title: 'Error',
-        description: error.message || 'Failed to send OTP',
         variant: 'destructive',
       });
     }
@@ -211,19 +180,10 @@ const LoginPage = () => {
                 We've sent a magic link to your email address. Click the link to sign in.
               </p>
             </div>
-          ) : otpSent ? (
-            <div className="text-center">
-              <div className="mb-4 text-6xl">📱</div>
-              <h3 className="mb-2 text-xl font-bold">Check your phone</h3>
-              <p className="text-muted-foreground">
-                We've sent a verification code to your phone. Enter the code to sign in.
-              </p>
-            </div>
           ) : (
             <Tabs defaultValue="magic-link" className="w-full">
-              <TabsList className="grid w-full grid-cols-3">
+              <TabsList className="grid w-full grid-cols-2">
                 <TabsTrigger value="magic-link">Magic Link</TabsTrigger>
-                <TabsTrigger value="otp">Phone OTP</TabsTrigger>
                 <TabsTrigger value="password">Password</TabsTrigger>
               </TabsList>
               
@@ -257,42 +217,6 @@ const LoginPage = () => {
                         disabled={loading}
                       >
                         {loading ? 'Sending link...' : 'Send magic link'}
-                      </Button>
-                    </div>
-                  </form>
-                </Form>
-              </TabsContent>
-              
-              <TabsContent value="otp">
-                <Form {...phoneForm}>
-                  <form onSubmit={phoneForm.handleSubmit(handleOTPSubmit)} className="space-y-6 pt-4">
-                    <FormField
-                      control={phoneForm.control}
-                      name="phone"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Phone number</FormLabel>
-                          <FormControl>
-                            <Input 
-                              placeholder="+1 555 123 4567" 
-                              type="tel" 
-                              autoComplete="tel" 
-                              disabled={loading} 
-                              {...field} 
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <div>
-                      <Button 
-                        type="submit" 
-                        className="w-full" 
-                        disabled={loading}
-                      >
-                        {loading ? 'Sending OTP...' : 'Send verification code'}
                       </Button>
                     </div>
                   </form>
