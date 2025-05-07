@@ -9,6 +9,75 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      am4_cache: {
+        Row: {
+          cache_data: Json
+          cache_key: string
+          id: string
+          updated_at: string
+        }
+        Insert: {
+          cache_data: Json
+          cache_key: string
+          id?: string
+          updated_at?: string
+        }
+        Update: {
+          cache_data?: Json
+          cache_key?: string
+          id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      am4_password: {
+        Row: {
+          created_at: string
+          id: string
+          password_hash: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          password_hash: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          password_hash?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      am4_settings: {
+        Row: {
+          created_at: string
+          id: string
+          setting_key: string
+          setting_value: Json
+          type: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          setting_key: string
+          setting_value: Json
+          type: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          setting_key?: string
+          setting_value?: Json
+          type?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       chat_messages: {
         Row: {
           created_at: string
