@@ -1,4 +1,5 @@
 
+# This project ID is a public identifier and is safe to be in version control
 project_id = "wpckzzjlhusvhmckrwen"
 [functions.nutrition-assistant]
 verify_jwt = true
