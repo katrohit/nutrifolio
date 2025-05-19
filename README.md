@@ -1,73 +1,39 @@
-# Welcome to your Lovable project
+# Welcome to NutriFolio
 
-## Project info
+## Project Overview
 
-**URL**: https://lovable.dev/projects/c1e6dfd0-5827-4fc2-90fa-8c839cf6228e
+**Website**: [https://nutrifolio.app](https://nutrifolio.app)
 
-## How can I edit this code?
+NutriFolio is a comprehensive nutrition tracking application designed to help users monitor their dietary habits, set health goals, and make informed food choices. Unlike traditional calorie counters, NutriFolio provides detailed insights into your nutritional intake, offering a complete portfolio of your dietary patterns.
 
-There are several ways of editing your application.
+### Key Features
 
-**Use Lovable**
+- **AI-Powered Nutrition Tracking**: Simply tell you ate through our intuitive chat interface, and our AI handles all the calculations and tracking
+- **Effortless Food Logging**: No more searching through databases or scanning barcodes - just describe your meal in natural language
+- **Detailed Nutrition Insights**: Monitor calories, macronutrients, and micronutrients with minimal effort
+- **Goal Setting**: Customize nutrition targets based on your personal health objectives
+- **Progress Analytics**: Track trends and patterns in your dietary habits
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/c1e6dfd0-5827-4fc2-90fa-8c839cf6228e) and start prompting.
+## Development & Technology
 
-Changes made via Lovable will be committed automatically to this repo.
+## Technology Stack
 
-**Use your preferred IDE**
+NutriFolio is built with modern web technologies, including:
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+- **Vite**: Fast and optimized frontend build tool
+- **TypeScript**: Strongly typed JavaScript for improved code quality
+- **React**: Component-based UI library for interactive interfaces
+- **shadcn/ui**: High-quality UI components for modern applications
+- **Tailwind CSS**: Utility-first CSS framework for responsive design
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+## Deployment
 
-Follow these steps:
+NutriFolio can be deployed using standard build and deployment processes for React applications. The project includes configurations for seamless deployment to various hosting platforms.
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+## Contributing
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+Contributions to NutriFolio are welcome! Whether you're fixing bugs, adding features, or improving documentation, please feel free to make a pull request.
 
-# Step 3: Install the necessary dependencies.
-npm i
+## License
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
-```
-
-**Edit a file directly in GitHub**
-
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
-
-**Use GitHub Codespaces**
-
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
-
-## What technologies are used for this project?
-
-This project is built with:
-
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
-
-## How can I deploy this project?
-
-Simply open [Lovable](https://lovable.dev/projects/c1e6dfd0-5827-4fc2-90fa-8c839cf6228e) and click on Share -> Publish.
-
-## Can I connect a custom domain to my Lovable project?
-
-Yes it is!
-
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-tricks/custom-domain#step-by-step-guide)
+Please refer to the project's license file for information on terms of use.
